@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getExplanationStream, generateQuestions, generateSpeech, QuestionRequest, getFollowUpAnswerStream, generateIllustration, generateSummary } from '../services/geminiService.ts';
-import type { AchievementStandard, QuizQuestion, QuizResult, TTSVoice, QuestionType, ConversationMessage } from '../types.ts';
+import { getExplanationStream, generateQuestions, generateSpeech, QuestionRequest, getFollowUpAnswerStream, generateIllustration, generateConceptSummary } from '../services/geminiService.ts';
+import type { AchievementStandard, QuizQuestion, QuizResult, TTSVoice, QuestionType, ConversationMessage, DifficultyLevel } from '../types.ts';
 import useLocalStorage from '../hooks/useLocalStorage.ts';
 import { Button } from './common/Button.tsx';
 import { Spinner } from './common/Spinner.tsx';
@@ -11,6 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { MathInput } from './common/MathInput.tsx';
 
 // Helper functions for audio decoding
 function decode(base64: string): Uint8Array {
@@ -86,6 +87,7 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
     const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(false);
     
     const [questionCounts, setQuestionCounts] = useState<{ [key in QuestionType]: number }>(defaultQuestionCounts);
+    const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
 
     const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
     const [isGeneratingQuestions, setIsGeneratingQuestions] = useState<boolean>(false);
@@ -138,7 +140,6 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
             setIsLoadingExplanation(true);
             setIsStreamingExplanation(true);
             setExplanation('');
-            setSummary(null);
             explanationRef.current = '';
             setExplanationError(null);
             try {
@@ -183,9 +184,27 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
             }
         };
 
-        // Execute in parallel to reduce wait time
+        const fetchSummary = async () => {
+            setIsLoadingSummary(true);
+            setSummary(null);
+            try {
+                const summaryText = await generateConceptSummary(subjectName, standard.description);
+                if (!isCancelled) {
+                    setSummary(summaryText);
+                }
+            } catch (error) {
+                console.error("Summary generation error:", error);
+            } finally {
+                if (!isCancelled) {
+                    setIsLoadingSummary(false);
+                }
+            }
+        };
+
+        // Execute in parallel
         fetchExplanation();
         fetchIllustration();
+        fetchSummary();
 
         return () => {
             isCancelled = true;
@@ -201,8 +220,8 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
         scrollToBottom();
     }, [conversation]);
 
-    const handleAskQuestion = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleAskQuestion = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
         if (!userQuestion.trim() || isAnswering) return;
 
         const newQuestion: ConversationMessage = { role: 'user', text: userQuestion };
@@ -276,19 +295,6 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
         }
     }, [explanation, selectedVoice, isSpeaking, isLoadingTTS, stopAllAudio]);
 
-    const handleGenerateSummary = async () => {
-        if (summary) return; // Already generated
-        
-        setIsLoadingSummary(true);
-        try {
-            const result = await generateSummary(explanationRef.current);
-            setSummary(result);
-        } catch (error) {
-            alert("요약 생성 중 오류가 발생했습니다.");
-        } finally {
-            setIsLoadingSummary(false);
-        }
-    };
 
     const handleGenerateQuiz = async () => {
         setIsGeneratingQuestions(true);
@@ -304,7 +310,7 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
                 return;
             }
 
-            const generated = await generateQuestions(subjectName, standard.description, requests);
+            const generated = await generateQuestions(subjectName, standard.description, requests, difficulty);
             if (!generated || generated.length === 0) {
                 throw new Error("문제를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
             }
@@ -381,17 +387,7 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
                         </div>
                     </div>
                     
-                     <div className="flex flex-wrap items-center justify-between mt-2 border-b border-slate-200 dark:border-slate-700 pb-2 gap-2">
-                        <button
-                            onClick={handleGenerateSummary}
-                            disabled={isLoadingExplanation || isStreamingExplanation || isLoadingSummary || summary !== null}
-                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-700 text-yellow-700 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/50 text-sm font-medium disabled:opacity-50 transition-colors"
-                            aria-label="핵심 요약 보기"
-                        >
-                            {isLoadingSummary ? <Spinner size="sm" /> : <SparklesIcon className="h-4 w-4" />}
-                            <span>핵심 요약</span>
-                        </button>
-
+                     <div className="flex flex-wrap items-center justify-end mt-2 border-b border-slate-200 dark:border-slate-700 pb-2 gap-2">
                         <div className="flex items-center gap-2">
                             <select
                                 id="voice-select"
@@ -431,28 +427,38 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
                 </header>
 
                 <article className="py-3 sm:py-4">
+                    {/* Summary Section (Default at Top) */}
+                    {(summary || isLoadingSummary) && (
+                        <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg shadow-sm">
+                            <h3 className="text-amber-800 dark:text-amber-300 font-bold text-base mb-2 flex items-center gap-1.5">
+                                <SparklesIcon className="w-4 h-4" /> 핵심 요약
+                            </h3>
+                            {isLoadingSummary ? (
+                                <div className="flex items-center gap-2 text-amber-700/70 dark:text-amber-400/70 text-sm">
+                                     <Spinner size="sm" />
+                                     <span>핵심 내용을 요약하고 있어요...</span>
+                                </div>
+                            ) : (
+                                <div className="text-slate-800 dark:text-slate-200 text-sm">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkGfm, remarkMath]} 
+                                        rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
+                                        components={markdownComponents}
+                                    >
+                                        {summary || ''}
+                                    </ReactMarkdown>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    
+                    {/* Explanation Section */}
                     {isLoadingExplanation ? (
                         <Spinner text="AI 튜터가 설명 자료를 준비하고 있어요..." />
                     ) : explanationError ? (
                             <p className="text-red-500 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm">{explanationError}</p>
                     ) : (
                         <div className="prose prose-sm sm:prose-base prose-slate dark:prose-invert max-w-none overflow-x-hidden leading-snug">
-                            {summary && (
-                                <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg shadow-sm">
-                                    <h3 className="text-amber-800 dark:text-amber-300 font-bold text-base mb-2 flex items-center gap-1.5">
-                                        <SparklesIcon className="w-4 h-4" /> 핵심 요약
-                                    </h3>
-                                    <div className="text-slate-800 dark:text-slate-200 text-sm">
-                                        <ReactMarkdown 
-                                            remarkPlugins={[remarkGfm, remarkMath]} 
-                                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
-                                            components={markdownComponents}
-                                        >
-                                            {summary}
-                                        </ReactMarkdown>
-                                    </div>
-                                </div>
-                            )}
                             <div className="w-full overflow-x-auto">
                                 <ReactMarkdown 
                                     remarkPlugins={[remarkGfm, remarkMath]} 
@@ -506,17 +512,16 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
                             </div>
 
                             <form onSubmit={handleAskQuestion}>
-                                <textarea
+                                <MathInput
                                     value={userQuestion}
-                                    onChange={(e) => setUserQuestion(e.target.value)}
+                                    onChange={setUserQuestion}
                                     placeholder="여기에 질문을 입력하세요..."
-                                    className="w-full p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-md focus:ring-2 focus:ring-neon-blue text-sm leading-snug placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                                    rows={2}
                                     disabled={isAnswering}
+                                    rows={2}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' && !e.shiftKey) {
                                             e.preventDefault();
-                                            handleAskQuestion(e);
+                                            handleAskQuestion();
                                         }
                                     }}
                                 />
@@ -533,6 +538,21 @@ export const StudySession: React.FC<StudySessionProps> = ({ subjectName, standar
 
                         <section>
                              <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 mb-3">이해도 확인하기(문항수 선택 가능)</h2>
+                            
+                            <div className="flex flex-col items-center mb-4">
+                                <label htmlFor="difficulty-select" className="block text-sm font-bold text-neon-blue mb-1">난이도</label>
+                                <select 
+                                    id="difficulty-select"
+                                    value={difficulty} 
+                                    onChange={(e) => setDifficulty(e.target.value as DifficultyLevel)}
+                                    className="w-full max-w-[200px] text-center p-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:ring-2 focus:ring-neon-blue transition-colors cursor-pointer text-sm"
+                                >
+                                    <option value="easy">하 (기초)</option>
+                                    <option value="medium">중 (보통)</option>
+                                    <option value="hard">상 (심화)</option>
+                                </select>
+                            </div>
+
                             <div className="grid grid-cols-4 gap-2 mb-3">
                                 <div>
                                     <label htmlFor="mc-questions" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-0.5 text-center">객관식</label>

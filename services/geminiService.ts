@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Modality, GenerateContentResponse } from '@google/genai';
-import type { QuizQuestion, TTSVoice, QuestionType, ConversationMessage, ShortAnswerEvaluation, QuizResult } from '../types.ts';
+import type { QuizQuestion, TTSVoice, QuestionType, ConversationMessage, ShortAnswerEvaluation, QuizResult, DifficultyLevel } from '../types.ts';
 
 let ai: GoogleGenAI | null = null;
 
@@ -154,6 +154,33 @@ export const generateSummary = async (text: string): Promise<string> => {
     }
 };
 
+export const generateConceptSummary = async (subjectName: string, standardDescription: string): Promise<string> => {
+    try {
+        const prompt = `
+        당신은 중학생들의 학습을 돕는 친절한 AI 튜터입니다.
+        다음 성취기준과 관련된 핵심 개념을 3~5개의 글머리 기호(Bullet points)로 요약해주세요.
+        중학생이 이해하기 쉽도록 핵심 용어와 원리를 간결하게 설명하세요.
+        답변은 바로 글머리 기호 내용부터 시작하세요.
+
+        과목: ${subjectName}
+        성취기준: ${standardDescription}
+
+        ${MATH_RULE_PROMPT}
+        `;
+
+        const aiInstance = getAi();
+        const response = await aiInstance.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+
+        return response.text || "요약을 생성할 수 없습니다.";
+    } catch (error) {
+        console.error("Summary generation error:", error);
+        return ""; // Fail gracefully
+    }
+};
+
 export const getFollowUpAnswerStream = async (
     subjectName: string,
     standardDescription: string,
@@ -233,7 +260,7 @@ export interface QuestionRequest {
     count: number;
 }
 
-export const generateQuestions = async (subjectName: string, standardDescription: string, requests: QuestionRequest[]): Promise<QuizQuestion[]> => {
+export const generateQuestions = async (subjectName: string, standardDescription: string, requests: QuestionRequest[], difficulty: DifficultyLevel = 'medium'): Promise<QuizQuestion[]> => {
     try {
         const totalQuestions = requests.reduce((sum, req) => sum + req.count, 0);
         if (totalQuestions === 0) {
@@ -255,6 +282,20 @@ export const generateQuestions = async (subjectName: string, standardDescription
                 }
             }).join('\n');
             
+        let difficultyPrompt = '';
+        switch (difficulty) {
+            case 'easy':
+                difficultyPrompt = '난이도: 하 (기초 개념을 확인하는 쉬운 문제)';
+                break;
+            case 'hard':
+                difficultyPrompt = '난이도: 상 (심화 사고력과 응용력을 요하는 어려운 문제)';
+                break;
+            case 'medium':
+            default:
+                difficultyPrompt = '난이도: 중 (개념 이해와 적용을 확인하는 일반적인 문제)';
+                break;
+        }
+            
         const languageInstruction = subjectName === '영어'
             ? '모든 텍스트(질문, 지문, 선택지, 정답, 해설)는 반드시 영어로만 작성하십시오. **필수**: `questionTranslation`, `answerTranslation`, `explanationTranslation` 필드에 각각의 한국어 번역을 반드시 포함하십시오.'
             : '문제, 정답, 해설은 모두 한국어로 작성하십시오.';
@@ -271,6 +312,8 @@ export const generateQuestions = async (subjectName: string, standardDescription
             성취기준: "${standardDescription}"
             위 성취기준에 근거하여 중학생 수준의 총 ${totalQuestions}개의 문제를 JSON 형식으로 생성하세요.
             
+            난이도 설정: ${difficultyPrompt}
+            
             요청사항:
             ${requestPrompts}
             
@@ -280,7 +323,7 @@ export const generateQuestions = async (subjectName: string, standardDescription
             - ${passageInstruction}
             - **필수**: 객관식('multiple-choice') 문제의 경우, 반드시 4~5개의 선택지를 'options' 배열에 포함해야 합니다. 선택지가 없으면 문제가 성립되지 않습니다.
             - **창의/탐구형 문제('creativity')의 경우**: 'answer' 필드에는 학생이 작성해야 할 모범 답안의 예시나, 채점 시 고려해야 할 핵심 평가 요소(키워드, 논리 구조 등)를 상세히 기술하세요.
-            - 문제의 난이도는 중학생이 풀 수 있는 수준으로 맞춰주세요.
+            - 문제의 난이도는 위 '난이도 설정'을 따르되, 중학생이 풀 수 있는 수준으로 맞춰주세요.
             - 시각 자료가 문제 풀이에 결정적인 도움이 되는 경우에만 'imagePrompt'에 영어 프롬프트 작성 (없으면 빈 문자열).
             - ${MATH_RULE_PROMPT}
             - **JSON 문자열 내부 주의**: LaTeX를 사용할 때는 백슬래시를 이스케이프 해야 합니다. (예: "$\\frac{1}{2}$" -> "$\\\\frac{1}{2}$")

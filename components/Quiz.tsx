@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import { MathInput } from './common/MathInput.tsx';
 
 interface QuizProps {
     questions: QuizQuestion[];
@@ -238,10 +239,11 @@ export const Quiz: React.FC<QuizProps> = ({ questions, onSubmit }) => {
         setUserAnswers(newAnswers);
     };
     
-    const handleShortAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (isAnswerChecked) return;
-        setTempShortAnswer(e.target.value);
-    };
+    // Replaced by MathInput onChange
+    // const handleShortAnswerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     if (isAnswerChecked) return;
+    //     setTempShortAnswer(e.target.value);
+    // };
 
     const handleCheckAnswer = () => {
         // If not in selection mode (meaning text input was used), save the text answer
@@ -300,7 +302,7 @@ export const Quiz: React.FC<QuizProps> = ({ questions, onSubmit }) => {
                  const qOptions = question.options;
                  // Recalculate mode for each question to know how to grade
                  const qHasOptions = (qType === 'multiple-choice' && qOptions && qOptions.length > 0) || (qType === 'ox');
-                 const isSelection = (qType === 'multiple-choice' || qType === 'ox') && qHasOptions;
+                 // const isSelection = (qType === 'multiple-choice' || qType === 'ox') && qHasOptions;
                  
                  const ans = userAnswers[index];
                  
@@ -430,14 +432,12 @@ export const Quiz: React.FC<QuizProps> = ({ questions, onSubmit }) => {
         
         return (
             <div className="mt-4">
-                <input
-                    type="text"
+                <MathInput
                     value={tempShortAnswer}
-                    onChange={handleShortAnswerChange}
+                    onChange={setTempShortAnswer}
                     disabled={isAnswerChecked}
-                    className="w-full p-3 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-lg focus:ring-2 focus:ring-neon-blue text-base text-slate-800 dark:text-slate-100"
                     placeholder={type === 'creativity' ? "창의적인 답변을 자유롭게 작성해보세요..." : "정답을 입력하세요..."}
-                    autoComplete="off"
+                    rows={3}
                 />
                 
                 {isMcFallback && (
@@ -575,86 +575,119 @@ export const Quiz: React.FC<QuizProps> = ({ questions, onSubmit }) => {
             </div>
         );
     };
-    
-    // Logic for enabling buttons
-    const hasAnswer = isSelectionMode ? userAnswer !== null : tempShortAnswer.trim() !== '';
-    const isCheckAnswerDisabled = !hasAnswer;
-    
-    // For Short Answer/Creativity, next button is disabled until grade is selected. 
-    // For MC fallback, it's auto-graded, so we don't wait for grade selection.
-    const isManualGradingRequired = type === 'short-answer' || type === 'creativity';
-    const isNextButtonDisabled = isAnswerChecked && isManualGradingRequired && shortAnswerGrades[currentQuestionIndex] === null;
 
     return (
-        <div className="max-w-4xl mx-auto bg-white dark:bg-slate-800 p-3 sm:p-6 rounded-xl shadow-lg min-h-[50vh] flex flex-col transition-colors duration-300">
-            <div className="flex-grow prose prose-sm sm:prose-base prose-slate dark:prose-invert max-w-none leading-snug">
-                <div className="flex flex-wrap justify-between items-center mb-1.5 gap-2">
-                    <div className="flex items-center gap-2">
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 m-0">문제 {currentQuestionIndex + 1} / {safeQuestions.length}</p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                            currentQuestion.questionType === 'ox' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 
-                            currentQuestion.questionType === 'multiple-choice' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 
-                            currentQuestion.questionType === 'creativity' ? 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' :
-                            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        }`}>
-                            {currentQuestion.questionType === 'ox' ? 'OX' : 
-                             currentQuestion.questionType === 'multiple-choice' ? '객관식' : 
-                             currentQuestion.questionType === 'creativity' ? '창의/탐구' : '서술형'}
-                        </span>
-                    </div>
-                    
-                    {/* Translation Toggle Button */}
-                    <button
-                        onClick={() => setShowTranslation(!showTranslation)}
-                        className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium transition-colors border ${showTranslation ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-700' : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
-                    >
-                        <TranslateIcon className="w-3.5 h-3.5" />
-                        {showTranslation ? '한글 번역 끄기' : '한글 번역 보기'}
-                    </button>
-                </div>
+        <div className="max-w-3xl mx-auto px-2 pb-20 sm:px-4">
+            <div className="mb-4 flex items-center justify-between">
+                <span className="text-sm font-bold text-slate-500 dark:text-slate-400">
+                    문제 {currentQuestionIndex + 1} <span className="font-normal text-slate-400">/ {safeQuestions.length}</span>
+                </span>
                 
-                {/* Passage / Script Section */}
-                {currentQuestion.passage && (
-                    <div className="mb-4 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg border border-slate-200 dark:border-slate-600">
-                         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                            <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                                🎧 듣기/읽기 자료
+                <div className="flex gap-2">
+                     {/* Show Translation Toggle if translations exist */}
+                     {(currentQuestion.questionTranslation || currentQuestion.passageTranslation) && (
+                        <button
+                            onClick={() => setShowTranslation(!showTranslation)}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${showTranslation ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'}`}
+                            title="한글 번역 보기"
+                        >
+                            <TranslateIcon className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">번역</span>
+                        </button>
+                     )}
+                </div>
+            </div>
+
+            <Card className="p-4 sm:p-6 min-h-[400px] flex flex-col justify-between">
+                <div>
+                    <div className="mb-4">
+                        <div className="flex justify-between items-start mb-2">
+                            <span className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold shadow-sm ${
+                                type === 'ox' ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' :
+                                type === 'multiple-choice' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                                type === 'creativity' ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300' :
+                                'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300'
+                            }`}>
+                                {type === 'ox' ? 'OX 퀴즈' : 
+                                 type === 'multiple-choice' ? '객관식' : 
+                                 type === 'creativity' ? '창의 서술형' : '단답형'}
                             </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setShowScript(!showScript)}
-                                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-200 transition-colors"
-                                >
-                                    <ScriptIcon className="w-3 h-3" />
-                                    {showScript ? '스크립트 숨기기' : '스크립트 보기'}
-                                </button>
-                                <button
-                                    onClick={() => handlePlayScript(currentQuestion.passage!)}
-                                    className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-neon-blue text-white hover:bg-blue-600 transition-colors shadow-sm disabled:opacity-50"
-                                    disabled={isLoadingTTS}
-                                >
-                                     {isLoadingTTS ? <Spinner size="sm" /> : isSpeaking ? <StopIcon className="w-3 h-3" /> : <SpeakerIcon className="w-3 h-3" />}
-                                     {isSpeaking ? '중지' : '듣기'}
-                                </button>
-                            </div>
+                            
+                            {/* TTS Button for Question */}
+                            <button 
+                                onClick={() => handlePlayScript(currentQuestion.question)}
+                                disabled={isSpeaking || isLoadingTTS}
+                                className="text-slate-400 hover:text-neon-blue dark:hover:text-neon-blue transition-colors disabled:opacity-30"
+                                title="문제 듣기"
+                            >
+                                {(isSpeaking) ? <StopIcon className="w-5 h-5" /> : <SpeakerIcon className="w-5 h-5" />}
+                            </button>
                         </div>
                         
-                        {showScript ? (
-                            <div className="text-sm bg-white dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-600 max-h-40 overflow-y-auto">
+                        <div className="prose prose-lg dark:prose-invert max-w-none text-slate-900 dark:text-slate-100 font-medium leading-relaxed break-keep">
+                            <ReactMarkdown 
+                                remarkPlugins={[remarkGfm, remarkMath]} 
+                                rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
+                                components={markdownComponents}
+                            >
+                                {currentQuestion.question}
+                            </ReactMarkdown>
+                        </div>
+                        
+                        {showTranslation && currentQuestion.questionTranslation && (
+                            <div className="mt-3 text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-700/30 p-3 rounded-lg border border-slate-100 dark:border-slate-700/50 leading-relaxed">
                                 <ReactMarkdown 
-                                    remarkPlugins={[remarkGfm, remarkMath]}
-                                    rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
+                                    remarkPlugins={[remarkGfm, remarkMath]} 
+                                    rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
                                     components={markdownComponents}
                                 >
-                                    {currentQuestion.passage}
+                                    {currentQuestion.questionTranslation}
                                 </ReactMarkdown>
-                                {/* Translation for Passage */}
+                            </div>
+                        )}
+                    </div>
+
+                    {currentQuestion.imageBase64 && (
+                        <div className="mb-6">
+                            <img 
+                                src={`data:image/png;base64,${currentQuestion.imageBase64}`} 
+                                alt="문제 이미지" 
+                                className="max-w-full h-auto rounded-lg shadow-md mx-auto max-h-64 object-contain border border-slate-100 dark:border-slate-700"
+                            />
+                        </div>
+                    )}
+
+                    {currentQuestion.passage && (
+                        <div className="mb-6">
+                            <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                                    <ScriptIcon className="w-4 h-4" />
+                                    <span className="text-xs font-bold uppercase">Passage / Script</span>
+                                </div>
+                                <button 
+                                    onClick={() => handlePlayScript(currentQuestion.passage!)}
+                                    disabled={isSpeaking || isLoadingTTS}
+                                    className="p-1 text-slate-400 hover:text-neon-blue transition-colors disabled:opacity-30"
+                                    title="지문 듣기"
+                                >
+                                    <SpeakerIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="p-4 bg-slate-50 dark:bg-slate-700/30 rounded-lg border border-slate-200 dark:border-slate-600">
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkGfm, remarkMath]} 
+                                        rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
+                                        components={markdownComponents}
+                                    >
+                                        {currentQuestion.passage}
+                                    </ReactMarkdown>
+                                </div>
                                 {showTranslation && currentQuestion.passageTranslation && (
-                                    <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                                        <p className="text-xs font-bold mb-1 text-slate-500 dark:text-slate-400">[한글 번역]</p>
+                                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-600 text-sm text-slate-600 dark:text-slate-400">
                                         <ReactMarkdown 
-                                            remarkPlugins={[remarkGfm, remarkMath]}
-                                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
+                                            remarkPlugins={[remarkGfm, remarkMath]} 
+                                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]}
                                             components={markdownComponents}
                                         >
                                             {currentQuestion.passageTranslation}
@@ -662,100 +695,42 @@ export const Quiz: React.FC<QuizProps> = ({ questions, onSubmit }) => {
                                     </div>
                                 )}
                             </div>
-                        ) : (
-                             <div className="text-sm text-center py-4 text-slate-500 dark:text-slate-400 italic">
-                                 [듣기 버튼을 눌러 내용을 확인하세요]
-                             </div>
-                        )}
-                    </div>
-                )}
-
-                {currentQuestion.imageBase64 && (
-                    <div className="my-2">
-                        <img 
-                            src={`data:image/png;base64,${currentQuestion.imageBase64}`} 
-                            alt="Question illustration" 
-                            className="rounded-lg shadow-sm mx-auto max-w-full h-auto max-h-40 sm:max-h-60 object-contain bg-slate-50 dark:bg-slate-700" 
-                        />
-                    </div>
-                )}
-                
-                <div className="font-medium text-slate-900 dark:text-slate-100 mt-2 text-base">
-                     <div className="overflow-x-auto">
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm, remarkMath]} 
-                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
-                            components={markdownComponents}
-                        >
-                            {currentQuestion.question}
-                        </ReactMarkdown>
-                    </div>
-                    {/* Translation for Question */}
-                    {showTranslation && currentQuestion.questionTranslation && (
-                        <div className="mt-1 text-sm text-slate-600 dark:text-slate-400 font-normal">
-                             <ReactMarkdown 
-                                remarkPlugins={[remarkGfm, remarkMath]} 
-                                rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
-                                components={markdownComponents}
-                            >
-                                {currentQuestion.questionTranslation}
-                            </ReactMarkdown>
                         </div>
                     )}
+
+                    {renderQuestionInput()}
                 </div>
-            </div>
 
-            {renderQuestionInput()}
+                <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <Button 
+                        variant="secondary" 
+                        onClick={handlePrev} 
+                        disabled={currentQuestionIndex === 0}
+                        className="flex items-center gap-1 pl-3 pr-4"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        이전
+                    </Button>
 
-            {isAnswerChecked && (
-                 <div className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
-                    <h3 className="font-semibold text-slate-800 dark:text-slate-200 mb-1.5 text-sm">📝 해설</h3>
-                    <div className="prose prose-sm prose-slate dark:prose-invert max-w-none overflow-x-auto leading-snug">
-                        <ReactMarkdown 
-                            remarkPlugins={[remarkGfm, remarkMath]} 
-                            rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
-                            components={markdownComponents}
+                    {!isAnswerChecked ? (
+                        <Button 
+                            onClick={handleCheckAnswer} 
+                            disabled={isSelectionMode ? !userAnswer : !tempShortAnswer.trim()} 
+                            className="px-8 shadow-md"
                         >
-                            {currentQuestion.explanation}
-                        </ReactMarkdown>
-                        {/* Translation for Explanation */}
-                        {showTranslation && currentQuestion.explanationTranslation && (
-                            <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-400">
-                                <ReactMarkdown 
-                                    remarkPlugins={[remarkGfm, remarkMath]} 
-                                    rehypePlugins={[[rehypeKatex, { output: 'html' }]]} 
-                                    components={markdownComponents}
-                                >
-                                    {currentQuestion.explanationTranslation}
-                                </ReactMarkdown>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            <div className="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center sticky bottom-0 bg-white dark:bg-slate-800 pb-3 sm:static sm:pb-0 z-20">
-                <Button 
-                    onClick={handlePrev} 
-                    disabled={currentQuestionIndex === 0} 
-                    variant="secondary"
-                    className="!py-2.5 !px-3 text-xs sm:text-sm"
-                >
-                    이전 문제
-                </Button>
-                
-                <div className="flex-1 ml-2">
-                    {isAnswerChecked ? (
-                        <Button onClick={handleNext} disabled={isNextButtonDisabled} className="w-full shadow-lg sm:shadow-none !py-2.5">
-                            {isLastQuestion ? '결과 보기' : '다음 문제'}
+                            정답 확인
                         </Button>
                     ) : (
-                        <Button onClick={handleCheckAnswer} disabled={isCheckAnswerDisabled} className="w-full shadow-lg sm:shadow-none !py-2.5">
-                            정답 확인
+                        <Button 
+                            onClick={handleNext} 
+                            className="px-6 flex items-center gap-1 pl-4 pr-3 shadow-md bg-slate-800 hover:bg-slate-900 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
+                        >
+                            {isLastQuestion ? '결과 보기' : '다음 문제'} 
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
                         </Button>
                     )}
                 </div>
-            </div>
+            </Card>
         </div>
     );
 };

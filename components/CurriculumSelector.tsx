@@ -15,6 +15,96 @@ interface CurriculumSelectorProps {
     isCoolMode: boolean;
 }
 
+const UsageGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+    return (
+        <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+            onClick={onClose}
+            role="dialog"
+            aria-modal="true"
+        >
+            <div 
+                className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col text-left"
+                onClick={(e) => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex justify-between items-center p-4 sm:p-5 border-b border-slate-100 dark:border-slate-700 shrink-0">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                        앱 활용 방법
+                    </h2>
+                    <button 
+                        onClick={onClose} 
+                        className="text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors p-1"
+                        aria-label="닫기"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                </div>
+                
+                {/* Content - Scrollable */}
+                <div className="overflow-y-auto p-4 sm:p-6 space-y-6 text-slate-700 dark:text-slate-300 text-sm sm:text-base leading-relaxed">
+                    {/* Section 1 */}
+                    <section>
+                        <h3 className="text-base sm:text-lg font-bold text-blue-500 dark:text-blue-400 mb-2">
+                            1. 예습 및 개념 다지기 (수업 전/후)
+                        </h3>
+                        <p className="mb-2 text-slate-600 dark:text-slate-400">학교 수업 전 예습용이나, 수업 후 복습용으로 활용할 수 있습니다.</p>
+                        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-400">
+                            <li><strong className="text-slate-900 dark:text-white font-bold">성취기준 기반 학습:</strong> 막연하게 "수학 공부"를 하는 것이 아니라, 교육과정(2022 개정)에 명시된 구체적인 성취기준을 하나씩 선택하여 목표를 명확히 합니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">AI 튜터의 설명:</strong> 교과서만으로 이해가 안 가는 부분은 AI가 생성해주는 <strong className="text-slate-900 dark:text-white">구조화된 설명(개념 정의, 원리, 예시)</strong>을 읽습니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">시각적/청각적 학습:</strong> 텍스트만 보는 것이 지루하다면 <strong className="text-slate-900 dark:text-white">'듣기' 기능(TTS)</strong>을 켜서 강의처럼 듣거나, AI가 생성한 개념 이미지를 보며 직관적으로 이해합니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">핵심 요약:</strong> 시간이 없을 때는 상단의 '핵심 요약' 박스만 빠르게 훑어보며 개념을 상기시킵니다.</li>
+                        </ul>
+                    </section>
+
+                    {/* Section 2 */}
+                    <section>
+                        <h3 className="text-base sm:text-lg font-bold text-blue-500 dark:text-blue-400 mb-2">
+                            2. 1:1 맞춤형 질문 (심화 학습)
+                        </h3>
+                        <p className="mb-2 text-slate-600 dark:text-slate-400">이해가 안 되는 부분은 AI에게 즉시 질문하여 해결합니다.</p>
+                        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-400">
+                            <li><strong className="text-slate-900 dark:text-white font-bold">무제한 질의응답:</strong> "이 공식이 왜 이렇게 유도되나요?", "실생활 예시는 무엇인가요?" 등 궁금한 점을 채팅창에 물어봅니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">수식 입력 활용:</strong> 앱에 내장된 수식 입력 도구를 활용하여 복잡한 수학 기호가 포함된 질문도 정확하게 할 수 있습니다.</li>
+                        </ul>
+                    </section>
+
+                    {/* Section 3 */}
+                    <section>
+                        <h3 className="text-base sm:text-lg font-bold text-blue-500 dark:text-blue-400 mb-2">
+                            3. 단계별 문제 풀이 (실전 연습)
+                        </h3>
+                        <p className="mb-2 text-slate-600 dark:text-slate-400">자신의 수준에 맞춰 문제를 생성하고 풉니다.</p>
+                        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-400">
+                            <li><strong className="text-slate-900 dark:text-white font-bold">난이도 조절:</strong> 처음에는 '하' 또는 '중' 난이도로 시작하여 개념을 확인하고, 실력이 쌓이면 '상' 난이도로 도전합니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">다양한 문제 유형:</strong>
+                                <ul className="list-[circle] pl-5 mt-1 space-y-1 marker:text-slate-400">
+                                    <li><strong className="text-slate-900 dark:text-white">OX 퀴즈 / 객관식:</strong> 개념을 정확히 아는지 빠르게 체크할 때 유용합니다.</li>
+                                    <li><strong className="text-slate-900 dark:text-white">단답형 / 서술형:</strong> 정확한 용어와 풀이 과정을 쓸 수 있는지 연습합니다.</li>
+                                    <li><strong className="text-slate-900 dark:text-white">창의/탐구형:</strong> 단순 계산이 아니라, 원리를 설명하거나 논리적으로 사고하는 힘을 기를 때 선택합니다. (AI가 논리, 관련성, 창의성을 기준으로 채점해줍니다.)</li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </section>
+
+                    {/* Section 4 */}
+                    <section>
+                        <h3 className="text-base sm:text-lg font-bold text-blue-500 dark:text-blue-400 mb-2">
+                            4. 메타인지 및 약점 보완 (대시보드 활용)
+                        </h3>
+                        <p className="mb-2 text-slate-600 dark:text-slate-400">학습 후에는 '나의 성취 수준(대시보드)' 메뉴를 통해 자신의 학습 상태를 점검합니다.</p>
+                        <ul className="list-disc pl-5 space-y-1.5 marker:text-slate-400">
+                            <li><strong className="text-slate-900 dark:text-white font-bold">학습 이력 관리:</strong> 내가 언제 어떤 단원을 공부했는지 기록을 확인합니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">취약 단원 파악:</strong> 그래프를 통해 점수가 낮은 단원(빨간색 막대 등)을 한눈에 파악하고, 해당 부분만 다시 공부합니다.</li>
+                            <li><strong className="text-slate-900 dark:text-white font-bold">AI 학습 코칭 리포트:</strong> 단순히 점수만 보는 것이 아니라, 'AI 상세 분석 받기' 버튼을 눌러 AI가 분석해주는 나의 강점과 보완할 점, 구체적인 학습 전략을 코칭받습니다.</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({ 
     educationCurriculums, 
     onStartStudy,
@@ -29,6 +119,7 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
     const [selectedSubjectName, setSelectedSubjectName] = useState<string>('');
     const [selectedUnitName, setSelectedUnitName] = useState<string>('');
     const [selectedStandardId, setSelectedStandardId] = useState<string>('');
+    const [isUsageGuideOpen, setIsUsageGuideOpen] = useState(false);
     
     // Local state for API key input to allow typing before submitting
     const [localApiKey, setLocalApiKey] = useState(apiKey);
@@ -138,10 +229,16 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
             </div>
             
             <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg px-4 py-2 md:px-6 md:py-3 mt-2 text-left transition-colors duration-300">
-                <div className="mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-700">
+                <div className="mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
                     <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
                         학습 목표 설정
                     </h2>
+                    <button 
+                        onClick={() => setIsUsageGuideOpen(true)}
+                        className="text-sm font-medium text-neon-blue hover:text-blue-600 hover:underline transition-colors focus:outline-none"
+                    >
+                        앱 활용 방법
+                    </button>
                 </div>
                 <div className="space-y-2.5">
                     <div>
@@ -200,7 +297,7 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                             Google AI Studio API 키
                         </label>
                         <p className="text-[11px] sm:text-xs text-[#001F3F] dark:text-slate-300 mb-2 leading-snug">
-                            Google AI 기반의 맞춤형 학습 콘텐츠 생성을 위해서는 API 키 입력이 필요합니다. 다만, 만 18세 미만 이용자는 직접 API 키를 발급받을 수 없으므로, 보호자가 대신 발급한 후 학생에게 전달(예: 이메일 전송)하여 사용할 수 있습니다.
+                            Google AI 기반의 맞춤형 학습 콘텐츠 생성을 위해서는 API 키 입력이 필요합니다. 다만, 만 18세 미만 이용자는 직접 API 키를 발급받을 수 없으므로, 보호자가 대신 무료 API 키를 발급한 후 학생에게 전달(예: 이메일 전송)하여 사용할 수 있습니다.
                         </p>
                         <div className="flex gap-2">
                             <input 
@@ -229,7 +326,7 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                                 rel="noopener noreferrer" 
                                 className="text-[10px] text-[#FF4500] dark:text-[#FF6347] hover:text-orange-600 hover:underline"
                             >
-                                API 키 발급받기 ↗
+                               무료 API 키 발급받기 ↗
                             </a>
                         </div>
                     </div>
@@ -247,6 +344,8 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                     </Button>
                 </div>
             </div>
+            
+            {isUsageGuideOpen && <UsageGuideModal onClose={() => setIsUsageGuideOpen(false)} />}
         </div>
     );
 };
