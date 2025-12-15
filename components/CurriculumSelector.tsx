@@ -105,6 +105,15 @@ const UsageGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
+// Interface for the flat list of standards
+interface FlatStandard {
+    curriculumName: string;
+    subjectName: string;
+    grade: string;
+    unitName: string;
+    standard: AchievementStandard;
+}
+
 export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({ 
     educationCurriculums, 
     onStartStudy,
@@ -121,12 +130,65 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
     const [selectedStandardId, setSelectedStandardId] = useState<string>('');
     const [isUsageGuideOpen, setIsUsageGuideOpen] = useState(false);
     
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    
     // Local state for API key input to allow typing before submitting
     const [localApiKey, setLocalApiKey] = useState(apiKey);
 
     useEffect(() => {
         setLocalApiKey(apiKey);
     }, [apiKey]);
+
+    // Flatten standards for search - Memoized
+    const allStandards = useMemo<FlatStandard[]>(() => {
+        const list: FlatStandard[] = [];
+        educationCurriculums.forEach(curr => {
+            curr.subjects.forEach(sub => {
+                sub.grades.forEach(gr => {
+                    gr.units.forEach(unit => {
+                        unit.standards.forEach(std => {
+                            list.push({
+                                curriculumName: curr.name,
+                                subjectName: sub.name,
+                                grade: gr.grade,
+                                unitName: unit.name,
+                                standard: std
+                            });
+                        });
+                    });
+                });
+            });
+        });
+        return list;
+    }, [educationCurriculums]);
+
+    // Search Logic
+    const searchResults = useMemo(() => {
+        if (!searchQuery.trim()) return [];
+        const query = searchQuery.toLowerCase().replace(/\s+/g, ''); // Remove spaces for looser matching
+        
+        return allStandards.filter(item => {
+            const desc = item.standard.description.toLowerCase().replace(/\s+/g, '');
+            const unit = item.unitName.toLowerCase().replace(/\s+/g, '');
+            const code = item.standard.id.toLowerCase();
+            return desc.includes(query) || unit.includes(query) || code.includes(query);
+        });
+    }, [searchQuery, allStandards]);
+
+    // Handle search result click
+    const handleSearchResultSelect = (item: FlatStandard) => {
+        // Set all values at once.
+        // Important: We removed the useEffects that clear downstream state to allow this "reverse selection".
+        setSelectedCurriculumName(item.curriculumName);
+        setSelectedSubjectName(item.subjectName);
+        setSelectedGrade(item.grade);
+        setSelectedUnitName(item.unitName);
+        setSelectedStandardId(item.standard.id);
+        
+        // Clear search
+        setSearchQuery('');
+    };
 
     const {
         availableSubjects,
@@ -137,21 +199,13 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
         selectedStandard,
     } = useMemo(() => {
         const curriculum = educationCurriculums.find(c => c.name === selectedCurriculumName) || educationCurriculums[0];
-        
         const subjects = curriculum.subjects;
-
         const subject = subjects.find(s => s.name === selectedSubjectName) || null;
-        
         const grades = subject ? subject.grades.map(g => g.grade) : [];
-        
         const gradeContent = subject?.grades.find(g => g.grade === selectedGrade) || null;
-        
         const units = gradeContent ? gradeContent.units : [];
-        
         const unit = units.find(u => u.name === selectedUnitName) || null;
-        
         const standards = unit ? unit.standards : [];
-        
         const standard = standards.find(s => s.id === selectedStandardId) || null;
 
         return {
@@ -166,28 +220,37 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
             selectedStandard: standard,
         };
     }, [educationCurriculums, selectedCurriculumName, selectedSubjectName, selectedGrade, selectedUnitName, selectedStandardId]);
-    
-    useEffect(() => {
-        setSelectedGrade('');
+
+    // Handlers for Dropdown Changes - Resetting downstream state manually
+    const handleCurriculumChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedCurriculumName(e.target.value);
         setSelectedSubjectName('');
-        setSelectedUnitName('');
-        setSelectedStandardId('');
-    }, [selectedCurriculumName]);
-    
-    useEffect(() => {
-       setSelectedUnitName('');
-       setSelectedStandardId('');
-    }, [selectedGrade]);
-
-    useEffect(() => {
         setSelectedGrade('');
         setSelectedUnitName('');
         setSelectedStandardId('');
-    }, [selectedSubjectName]);
+    };
 
-    useEffect(() => {
+    const handleSubjectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedSubjectName(e.target.value);
+        setSelectedGrade('');
+        setSelectedUnitName('');
         setSelectedStandardId('');
-    }, [selectedUnitName]);
+    };
+
+    const handleGradeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedGrade(e.target.value);
+        setSelectedUnitName('');
+        setSelectedStandardId('');
+    };
+
+    const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedUnitName(e.target.value);
+        setSelectedStandardId('');
+    };
+
+    const handleStandardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSelectedStandardId(e.target.value);
+    };
 
     const handleSubmit = () => {
         if (selectedSubject && selectedStandard) {
@@ -200,7 +263,6 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
     };
 
     const Select = ({ children, ...props }: React.SelectHTMLAttributes<HTMLSelectElement>) => (
-        // text-base (16px) prevents iOS automatic zoom on focus. Reduced vertical padding to py-1.
         <select {...props} className="w-full bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg py-1 px-2 text-base text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-neon-blue focus:border-neon-blue transition duration-150 ease-in-out disabled:bg-slate-200 dark:disabled:bg-slate-800 disabled:text-slate-500 dark:disabled:text-slate-500 disabled:cursor-not-allowed appearance-none bg-[length:10px_10px] bg-[right_0.75rem_center] bg-no-repeat pr-8">
             {children}
         </select>
@@ -228,10 +290,10 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                 </p>
             </div>
             
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg px-4 py-2 md:px-6 md:py-3 mt-2 text-left transition-colors duration-300">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg px-4 py-2 md:px-6 md:py-3 mt-2 text-left transition-colors duration-300 relative z-10">
                 <div className="mb-1.5 pb-1 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-                    <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                        학습 목표 설정
+                    <h2 className="text-base sm:text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        학습 목표 설정 (2022 개정 교육과정)
                     </h2>
                     <button 
                         onClick={() => setIsUsageGuideOpen(true)}
@@ -240,24 +302,83 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                         앱 활용 방법
                     </button>
                 </div>
-                <div className="space-y-2.5">
-                    <div>
-                        <label htmlFor="curriculum" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">교육과정</label>
-                        <Select id="curriculum" value={selectedCurriculumName} onChange={e => setSelectedCurriculumName(e.target.value)}>
-                            {educationCurriculums.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
-                        </Select>
+                
+                {/* Keyword Search Section */}
+                <div className="mb-6 relative">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                        <input
+                            id="standard-search"
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="핵심 단어로 성취기준 검색 (예: 분수, 도형, 화산, 민주주의)"
+                            className="w-full pl-10 pr-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg text-base bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-neon-blue focus:border-neon-blue transition-colors shadow-sm placeholder:text-slate-400"
+                            autoComplete="off"
+                        />
+                         {searchQuery && (
+                            <button
+                                onClick={() => setSearchQuery('')}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
+                    
+                    {/* Search Results Dropdown */}
+                    {searchQuery && (
+                        <div className="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                            {searchResults.length > 0 ? (
+                                <ul className="py-1">
+                                    {searchResults.map((item) => (
+                                        <li key={item.standard.id}>
+                                            <button
+                                                onClick={() => handleSearchResultSelect(item)}
+                                                className="w-full text-left px-4 py-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors border-b border-slate-100 dark:border-slate-700/50 last:border-0"
+                                            >
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                                        {item.subjectName}
+                                                    </span>
+                                                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                                                        {item.grade} &gt; {item.unitName}
+                                                    </span>
+                                                </div>
+                                                <div className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug">
+                                                    {item.standard.description}
+                                                </div>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                                    검색 결과가 없습니다.
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                <div className="space-y-2.5">
                     <div className="flex gap-2">
                         <div className="flex-1">
                             <label htmlFor="subject" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">과목</label>
-                            <Select id="subject" value={selectedSubjectName} onChange={e => setSelectedSubjectName(e.target.value)} disabled={availableSubjects.length === 0}>
+                            <Select id="subject" value={selectedSubjectName} onChange={handleSubjectChange} disabled={availableSubjects.length === 0}>
                                 <option value="" disabled={selectedSubjectName !== ''}>선택</option>
                                 {availableSubjects.map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
                             </Select>
                         </div>
                         <div className="flex-1">
                             <label htmlFor="grade" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">학년</label>
-                            <Select id="grade" value={selectedGrade} onChange={e => setSelectedGrade(e.target.value)} disabled={!selectedSubjectName}>
+                            <Select id="grade" value={selectedGrade} onChange={handleGradeChange} disabled={!selectedSubjectName}>
                                 <option value="" disabled={selectedGrade !== ''}>선택</option>
                                 {availableGrades.map(g => <option key={g} value={g}>{g}</option>)}
                             </Select>
@@ -268,7 +389,7 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                         {selectedGrade && !isSubjectReady ? (
                           <DisabledSelectPlaceholder text="준비중인 단원입니다." />
                         ) : (
-                          <Select id="unit" value={selectedUnitName} onChange={e => setSelectedUnitName(e.target.value)} disabled={!selectedGrade}>
+                          <Select id="unit" value={selectedUnitName} onChange={handleUnitChange} disabled={!selectedGrade}>
                               <option value="" disabled={selectedUnitName !== ''}>단원을 선택하세요</option>
                               {availableUnits.map(u => <option key={u.name} value={u.name}>{u.name}</option>)}
                           </Select>
@@ -279,7 +400,7 @@ export const CurriculumSelector: React.FC<CurriculumSelectorProps> = ({
                          {selectedGrade && !isSubjectReady ? (
                           <DisabledSelectPlaceholder text="성취기준을 선택하세요" />
                         ) : (
-                          <Select id="standard" value={selectedStandardId} onChange={e => setSelectedStandardId(e.target.value)} disabled={!selectedUnitName || availableStandards.length === 0}>
+                          <Select id="standard" value={selectedStandardId} onChange={handleStandardChange} disabled={!selectedUnitName || availableStandards.length === 0}>
                               <option value="" disabled={selectedStandardId !== ''}>성취기준을 선택하세요</option>
                               {availableStandards.map(s => <option key={s.id} value={s.id}>{s.id}: {s.description}</option>)}
                           </Select>
